@@ -1,0 +1,63 @@
+#!/usr/bin/python
+import rospy
+import image_geometry
+
+from detected_object import DetectedObject
+
+class Training(object):
+	def __init__(self, name, move, img_proc, camera):
+				print "HERE"
+		self.name = name
+		
+		self.move = move
+		self.img_proc = img_proc
+		self.camera = camera
+		
+		self.views = []
+		
+		self._mass_centre()
+	
+	""" Find mass centre of object and hover over """
+	def _mass_centre(self):
+		self.move.move_to_home()
+		rospy.sleep(0.1)
+		
+		self.img_proc.frame_average_edges(100, self.camera) 
+		self.img_proc.contours_from_image()
+		
+		if (len(self.img_proc.img_contours) == 0):
+			print "No object detected on the table"
+			return
+		elif (len(self.img_proc.img_contours) > 1):
+			print "More than one object detected on the table"
+			return
+		
+		obj = DetectedObject(self.img_proc.img_contours, self.img_proc.cv_img)
+
+		pos = image_geometry.projectPixelTo3d(obj.mass_centre, 0)
+
+
+################################################################################
+"""		
+class DetectCentreState(object):
+	def __init__(self, (pos)):
+		
+################################################################################		
+		
+		
+################################################################################		
+		
+class CalibrateState(object):
+	def __init__(self):
+		self.table_z = None
+		self.table_raw_z = None
+		
+		self.object_z = None
+		self.object_raw_z = None
+		self.object_height = None
+		
+		self.position_x_diff = None
+		self.position_y_diff = None
+		
+	
+"""	
