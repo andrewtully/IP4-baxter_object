@@ -10,13 +10,14 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, CameraInfo
 
 class ImageReceiver(object):
+	""" Gets the image from the camera and converts it into a OpenCV compatible (BGR) image """
+
 	def __init__(self, camera_name):
 		self.camera_name = camera_name
-		"""
 		self.camera_controller = CameraController(camera_name)
 		self.camera_controller.resolution = (960, 600)
 		self.camera_controller.exposure = 99
-		"""
+		
 		self.bridge = CvBridge()
 		
 		self.cv_img = None
@@ -30,15 +31,17 @@ class ImageReceiver(object):
 		
 	
 ################################################################################
-	"""
+	
+	""" Enables the camera """
 	def enable_camera(self):
 		self.camera_controller.open()
 	
 ################################################################################	
 
+	""" Disables the camera """
 	def disable_camera(self):
 		self.camera_controller.close()
-"""
+
 ################################################################################
 	
 	def _intrinsics_callback(self, data):
@@ -50,6 +53,7 @@ class ImageReceiver(object):
 		self.distortion = np.array(data.D)
 		self.matrix = np.array(mtx)		
 
+	""" Returns the distortion and camera matrix of the camera """
 	def get_intrinsics(self):
 		self.distortion = None
 		self.matrix = None
@@ -71,6 +75,7 @@ class ImageReceiver(object):
 		except CvBridgeError, e:
 			print e
 	
+	""" Returns the image from the subscribed camera topic """
 	def get_image(self):
 		self.cv_img = None
 		self.ros_img = None

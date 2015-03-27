@@ -12,6 +12,8 @@ DEFAULT_PIXELS_PER_METRE = 15 / 2.54*100
 DEFAULT_HOME_HEIGHT = 25.875 * 2.54 / 100
 
 class ImageProcessor(object):
+	""" Class that performs any image vision techniques """
+
 	def __init__(self, home_pose, camera_matrix, distortion, table_height=None, cv_img=None):
 		self.home_pose = home_pose
 		self.camera_matrix = camera_matrix
@@ -35,6 +37,7 @@ class ImageProcessor(object):
 	
 ################################################################################
 
+	""" Publish the image to Baxter's screen """
 	def display_image(self, img, encoding):
 		img = cv2.resize(img, (1024, 600), interpolation=cv2.INTER_AREA)
 		msg = self.bridge.cv_to_imgmsg(cv2.cv.fromarray(img), encoding)
@@ -43,9 +46,17 @@ class ImageProcessor(object):
 		self.img_pub.publish(msg)
 		rospy.sleep(1)
 
+	""" Write the image to a specified location """
+	def write_image(self, location):
+		cv2.imwrite(location, self.cv_img)
+	
+	""" Write the Canny image to a specified location """
+	def write_segmented_image(self, location):
+		cv2.imwrite(location, self.segment_img)
+
 ################################################################################
 
-	def undistort_image(self, cv_img):
+	def _undistort_image(self, cv_img):
 		height, width, _ = cv_img.shape
 		cam_matrix, roi = cv2.getOptimalNewCameraMatrix(self.camera_matrix, self.distortion, (width, height), 1, (width, height))
 		undistort = cv2.undistort(cv_img, self.camera_matrix, self.distortion, None, cam_matrix)
@@ -53,8 +64,8 @@ class ImageProcessor(object):
 		x, y, w, h = roi
 		return np.array(undistort[y:y+h, x:x+w])
 
-################################################################################
 
+	""" Set the OpenCV (BGR) image to be used in this class """
 	def set_image(self, cv_img, undistort=True):
 		if (cv_img is None):
 			self.cv_img = None
@@ -62,24 +73,18 @@ class ImageProcessor(object):
 			self.img_height = 0
 		else:	
 			if (undistort):
-				self.cv_img = self.undistort_image(cv_img)
+				self.cv_img = self._undistort_image(cv_img)
 			else:
 				self.cv_img = cv_img	
 		
-			## Would this work with cv_img.shape? ##
 			self.cv_width, self.cv_height = cv2.cv.GetSize(cv2.cv.fromarray(self.cv_img))
 
-################################################################################
-
-	def write_image(self, location):
-		cv2.imwrite(location, self.cv_img)
-	
-	def write_segmented_image(self, location):
-		cv2.imwrite(location, self.segment_img)
 
 ################################################################################
+	###############################
+	### OpenCV helper functions ###
+	###############################
 
-	## Helper Functions
 	def _bgr_to_grey(self, img):
 		return cv2.cvtColor(img, cv2.cv.CV_BGR2GRAY)
 
@@ -102,10 +107,16 @@ class ImageProcessor(object):
 
 ################################################################################
 	
+	""" Get the image from the specified camera """
 	def get_image(self, camera):
 		img = camera.get_image()
 		self.set_image(img)
 	
+	""" Perform the edge detection """
+	def edges(self):
+		self.segment_img = self._canny(self._bgr_to_grey(self.cv_img))
+		
+	""" Perform the edge detection using drame averaging to reduce noise """	
 	def frame_average_edges(self, frames, camera):
 		self.get_image(camera)
 		
@@ -129,16 +140,19 @@ class ImageProcessor(object):
 		
 ################################################################################
 
+	""" Returns a masked image based on the input contours """
 	def mask_contour(self, contour_id):
 		mask = np.zeros((self.cv_img.shape[0], self.cv_img.shape[1], 1), np.uint8)
 		cv2.drawContours(mask, self.img_contours, contour_id, 255, cv2.cv.CV_FILLED)
 		return cv2.bitwise_and(self.cv_img, self.cv_img, mask=mask)
 
 ################################################################################
-
+	
+	""" Returns the area of bounding rectangle """
 	def _rect_area(self, rect):
 		return rect[2] * rect[3]
  
+ 	""" Returns a mask of the bounding rectangle with the smallest area (i.e. the object) """
 	def _bounding_rect(self, img, contours):
 		bound_rect = []
 		for i in range(len(contours)):
@@ -168,6 +182,7 @@ class ImageProcessor(object):
 		cv2.rectangle(mask, tl, br, 255, cv2.cv.CV_FILLED, 8, 0)
 		return mask
  
+ 	""" Sets the OpenCV image to be a bounding rectangle mask of object in scene """
 	def bounding_rectangle_mask(self):
 		grey = cv2.cvtColor(self.cv_img, cv2.cv.CV_BGR2GRAY)
  
@@ -196,6 +211,7 @@ class ImageProcessor(object):
 	
 ################################################################################
 
+	""" Calculates the contours from the segmented image """
 	def contours_from_image(self):
 		if (self.segment_img is not None):
 			poss_contours, self.img_hierarchy = cv2.findContours(self.segment_img, cv2.cv.CV_RETR_EXTERNAL, cv2.cv.CV_CHAIN_APPROX_NONE, (0, 0))
@@ -203,14 +219,16 @@ class ImageProcessor(object):
 			self.img_contours = []
 			for i in range(0, len(poss_contours)):
 				area = cv2.contourArea(poss_contours[i])
-				if (area > 2000):
+				if (area > 1500):
 					self.img_contours.append(poss_contours[i])
 
 	
+	""" Calculates the mass centre of a contour """
 	def _calculate_mass_centre(self, contour):
 		moments = cv2.moments(contour, False)	
 		return (float(moments["m10"])/float(moments["m00"])), (float(moments["m01"])/float(moments["m00"]))
-						
+				
+	""" Helper function to draw the contours on an image """		
 	def draw_contours(self):
 		if (self.img_contours is not None):
 			img = np.copy(self.cv_img)
@@ -220,6 +238,7 @@ class ImageProcessor(object):
 			
 			return img
 	
+	""" Draws the specified text on the contour at the mass centre """
 	def draw_object_text(self, img, obj_dict):
 		if (self.img_contours is not None):
 			keys = obj_dict.keys()

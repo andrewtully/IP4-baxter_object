@@ -1,5 +1,4 @@
 #!/usr/bin/python
-## Cheers Daniel ##
 
 import math
 import rospy
@@ -19,37 +18,13 @@ from baxter_core_msgs.srv import (
     SolvePositionIKRequest,
 )
 
-################################################################################
-
-#_IKSVC_LEFT_URI = 'ExternalTools/left/PositionKinematicsNode/IKService'
-#_IKSVC_RIGHT_URI = 'ExternalTools/right/PositionKinematicsNode/IKService'
-
-################################################################################
 
 class IKHelper(object):
 	"""An abstraction layer for using Baxter's built in IK service."""
 
 	############################################################################
 
-	def __init__(self, arm):
-		#self._left_arm = Limb(arm)
-		#self._left_arm.set_joint_position_speed(0.3)
-		#self._right_arm = Limb('right')
-		#self._right_arm.set_joint_position_speed(0.3)
-
-		#self._left_iksvc = rospy.ServiceProxy(
-		#    _IKSVC_LEFT_URI,
-		#    SolvePositionIK)
-
-		#self._right_iksvc = rospy.ServiceProxy(
-		#    _IKSVC_RIGHT_URI,
-		#    SolvePositionIK)
-
-		#self._joint_update_pub = rospy.Publisher(
-		#    '/robot/joint_state_publish_rate', 
-		#    UInt16)
-		#self._joint_update_pub.publish(250)
-		
+	def __init__(self, arm):		
 		self._arm = Limb(arm)
 		self._arm.set_joint_position_speed(0.3)
 
@@ -65,102 +40,37 @@ class IKHelper(object):
 
 	############################################################################
 
+	""" Move arm to neutral position """   
 	def reset(self):
-		"""Reset both arms to their neutral positions."""   
-		#self._left_arm.move_to_neutral()
-		#self._right_arm.move_to_neutral()
 		self._arm.move_to_neutral()
 
-	"""
-	def set_left(self, pos, rot=(0, math.pi, math.pi *0.5), wait=False):
-		Set the endpoint of the left arm to the supplied coordinates.
-		Arguments:
-			pos -- Position in space in (x, y, z) format.
-			rot -- Rotation in space in (r, p, y) format. (defaults to pointing
-				downwards.)
-		Keyword arguments:
-			wait -- If True, method will block until in position. (default 
-				False)
-
-		self._set_arm(self._left_iksvc, self._left_arm, pos, rot, wait)
-
-	def set_left(self, pos, rot=(0, math.pi, math.pi *0.5), wait=False):
-		Set the endpoint of the right arm to the supplied coordinates.
-		Arguments:
-			pos -- Position in space in (x, y, z) format.
-			rot -- Rotation in space in (r, p, y) format. (defaults to pointing
-				downwards.)
-		Keyword arguments:
-			wait -- If True, method will block until in position. (default 
-				False)
-
-		self._set_arm(self._right_iksvc, self._right_arm, pos, rot, wait)
-
-	"""
-	"""
-	def get_left(self):
-		Return the current endpoint pose of the left arm.
-		return self._left_arm.endpoint_pose()['position']
-
-	def get_right(self):
-		Return the current endpoint pose of the left arm.
-		return self._right_arm.endpoint_pose()['position']
-
-	"""
 	
+	""" Return the endpoint pose of the arm """
 	def get_arm(self):
 		return self._arm.endpoint_pose()['position']
 	
-	"""			
-	def get_left_velocity(self):
-		Return the current endpoint velocity of the left arm.
-		return self._left_arm.endpoint_velocity()['linear']
-
-	def get_right_velocity(self):
-		Return the current endpoint velocity of the right arm.
-		return self._right_arm.endpoint_velocity()['linear']
-	"""
 	
+	""" Return the endpoint velocity of the arm """
 	def get_arm_velocity(self):
 		return self._arm.endpoint_velocity()["linear"]
 
-	"""
-	def get_left_force(self):
-		Return the current endpoint force on the left arm.
-		return self._left_arm.endpoint_effort()['force']
 
-	def get_right_force(self):
-		Return the current endpoint force on the right arm.
-		return self._right_arm.endpoint_effort()['force']
-
-	"""
-	
+	""" Return the endpoint force of the arm """ 
 	def get_arm_force(self):
 		return self._arm.endpoint_effort()["force"]
 	
-
 	############################################################################
 	
+	""" 
+	If wait is True: check specified position is valid and move the arm to position 
+	Otherwise: check to see if position is valid
 
-	"""
-	def _set_arm(self, iksvc, limb, pos, rot, wait):
-		resp = self._get_ik(iksvc, pos, rot)
-		positions = resp[0]
-		isValid = resp[1]
-		if not isValid:
-			print('invalid: {0} {1} {2}'.format(x, y, z))
-
-		if not wait:
-			limb.set_joint_positions(positions)
-		else:
-			limb.move_to_joint_positions(positions)
 	"""
 	def set_arm(self, pos, rot=(0, math.pi, math.pi *0.5), wait=True):
 		resp = self._get_ik(self._arm_iksvc, pos, rot)
 		positions = resp[0]
 		isValid = resp[1]
 		if not isValid:
-			#print('invalid: {0} {1} {2}'.format(x, y, z))
 			print("Invalid position")
 		else:
 			print("Position is valid")
@@ -170,6 +80,8 @@ class IKHelper(object):
 		else:
 			self._arm.move_to_joint_positions(positions)
 
+
+	""" Returns specified position with orientation and its validity """
 	def _get_ik(self, iksvc, pos, rot):
 		q = quaternion_from_euler(rot[0], rot[1], rot[2])
 

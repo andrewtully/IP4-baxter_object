@@ -4,6 +4,8 @@ import cv2
 import numpy as np
 
 class DetectedObject(object):
+	""" For an object detected, claculate various features """
+
 	def __init__(self, contour, original_img):
 		self.contour = contour
 		self.moments = cv2.moments(self.contour, False)	
@@ -13,14 +15,12 @@ class DetectedObject(object):
 		self.mass_centre = self._calculate_mass_centre()		
 		
 		self.b_colour_hist, g_colour_hist, r_colour_hist = self._calculate_colour_histograms(original_img)
-		self.texture_hist = self._calculate_texture_histograms(original_img)
 
 ################################################################################
 
 	def _calculate_mass_centre(self):
 		return (float(self.moments["m10"])/float(self.moments["m00"])), (float(self.moments["m01"])/float(self.moments["m00"]))
 
-################################################################################
 	
 	def _histogram_mask(self, array, mask):
 		hist_size = 256
@@ -41,5 +41,3 @@ class DetectedObject(object):
 	
 ################################################################################
 
-	def _calculate_texture_histograms(self, img):
-		return None
